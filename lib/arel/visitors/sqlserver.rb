@@ -120,11 +120,28 @@ module Arel
       end
 
       def visit_Arel_Nodes_OuterJoin o, collector
-        collector << "LEFT OUTER JOIN "
-        collector = visit o.left, collector
-        collector = visit_Arel_Nodes_SelectStatement_SQLServer_Lock collector, space: true
+        if o.left.is_a?(Arel::Nodes::As) && o.left.left.is_a?(Arel::Nodes::Lateral)
+          visit o.left, collector
+          collector << " "
+        else
+          collector << "LEFT OUTER JOIN "
+          collector = visit o.left, collector
+          collector = visit_Arel_Nodes_SelectStatement_SQLServer_Lock collector, space: true
+          collector << " "
+          visit o.right, collector
+        end
+      end
+
+      def visit_Arel_Nodes_Lateral o, collector
+        collector << "OUTER APPLY"
         collector << " "
-        visit o.right, collector
+        if o.expr.is_a?(Arel::Nodes::SelectStatement)
+          collector << "("
+          visit(o.expr, collector)
+          collector << ")"
+        else
+          visit(o.expr, collector)
+        end
       end
 
       # SQLServer ToSql/Visitor (Additions)
